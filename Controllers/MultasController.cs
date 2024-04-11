@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Data;
 using System.Data.SqlClient;
 
 namespace TesteMultaNovo.Controllers
@@ -9,76 +8,69 @@ namespace TesteMultaNovo.Controllers
     {
         private readonly string connectionString = "Data Source=.;Initial Catalog=TesteMulta;Integrated Security=True;";
 
-        [HttpGet]
-        public ActionResult ObterMultas()
+        // Método HTTP POST para inserir uma multa
+        [HttpPost]
+        public IActionResult InserirMulta([FromBody] Multa multa)
         {
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
+                    string insertQuery = "INSERT INTO Multa (placa, valor) VALUES (@placa, @valor)";
+                    using (SqlCommand command = new SqlCommand(insertQuery, connection))
+                    {
+                        command.Parameters.AddWithValue("@placa", multa.Placa);
+                        command.Parameters.AddWithValue("@valor", multa.Valor);
+                        command.ExecuteNonQuery();
+                    }
+                }
+                return Ok("Multa inserida com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
-                    // Consulta à tabela Multa
-                    string selectQuery = "SELECT id, placa, valor FROM Multa";
+        // Método HTTP GET para obter todas as multas
+        [HttpGet]
+        public IActionResult ObterMultas()
+        {
+            try
+            {
+                List<Multa> multas = new List<Multa>();
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string selectQuery = "SELECT placa, valor FROM Multa";
                     using (SqlCommand command = new SqlCommand(selectQuery, connection))
                     {
                         using (SqlDataReader reader = command.ExecuteReader())
                         {
-                            List<object> multas = new List<object>();
                             while (reader.Read())
                             {
-                                var multa = new
+                                multas.Add(new Multa
                                 {
-                                    Id = reader.GetInt32(0),
-                                    Placa = reader.GetString(1),
-                                    Valor = reader.GetDecimal(2)
-                                };
-                                multas.Add(multa);
+                                    Placa = reader["placa"].ToString(),
+                                    Valor = Convert.ToDecimal(reader["valor"])
+                                });
                             }
-
-                            if (multas.Count() < 1) return NotFound("Nao foram encontrados nenhuma multa na base de dados");  
-
-                            return Ok(multas);
                         }
                     }
                 }
+                return Ok(multas);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex);
+                return BadRequest(ex.Message);
             }
         }
+    }
 
-        [HttpPost]
-        public ActionResult InserirMulta(string placa, int? manualId)
-        {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // Criação do objeto multa com os atributos
-                    int id = manualId ?? 1; // Implemente a lógica para obter o próximo ID
-                    double valor = 100.50; // Exemplo de valor
-
-                    // Inserção na tabela Multa
-                    string insertQuery = "INSERT INTO Multa (id, placa, valor) VALUES (@id, @placa, @valor)";
-                    using (SqlCommand command = new SqlCommand(insertQuery, connection))
-                    {
-                        command.Parameters.AddWithValue("@id", id);
-                        command.Parameters.AddWithValue("@placa", placa);
-                        command.Parameters.AddWithValue("@valor", valor);
-                        command.ExecuteNonQuery();
-                    }
-
-                    return Ok($"Multa inserida com sucesso! ID: {id}");
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex);
-            }
-        }
+    public class Multa
+    {
+        public string Placa { get; set; }
+        public decimal Valor { get; set; }
     }
 }
